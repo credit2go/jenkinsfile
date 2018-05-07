@@ -1,1 +1,27 @@
+#!/usr/bin/env groovy
+timestamps {
+    node('hangzhou') {
+        ws('/opt/jenkins/workspace/devops/mayi/') {
+            checkout([$class: 'SubversionSCM', locations: [[credentialsId: 'SVN', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: 'https://devtest.credit2go.cn:20000/svn/product/branches/devops/mayi/']], workspaceUpdater: [$class: 'UpdateWithCleanUpdater']])
 
+            def host = artifactId + "_" + hosts
+            def token = "a849e5ab2a0258e75c39c8f079f8127017a1754539cc5d51d058f1432fbfcd44"
+
+            stage('发送文件到服务器') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_conf_to_remote/sent_conf_to_remote.yml', extras: '--extra-vars "server=' + host + ' source=$workspace/' + filename + ' dest=/opt/tomcat/"'
+                }
+                timeout(5) {
+                    def body = "推送配置到目标机器：" + filename + "已经发送到目标机器的/opt/runconf/目录下，请核对后继续。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否传送成功？'
+                }
+            }
+
+                stage('结果通知') {
+                    notification(env: 'finance', envType: '生产环境', artifactId: artifactId, version: version, svn_version: svn_version, redmineID: RedmineId, mail: [send: true, mailto: 'delivery@credit2go.cn,support.credit2go.cn', mailcc: 'ops@credit2go.cn,system@credit2go.cn', from: '生产版本发布<notification@credit2go.cn>'], dingding: [send: true, token: token])
+                }
+            }
+        }
+    
+}
