@@ -30,7 +30,7 @@ timestamps {
             }
             stage('发送文件到服务器') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_file_to_remote/sent_file_to_remote.yml', extras: '--extra-vars "server=' + host + ' source=$workspace/' + filename + ' dest=/opt/tomcat/"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_file_to_remote/sent_file_to_remote.yml', extras: '--extra-vars "server=' + hosts + ' source=$workspace/' + filename + ' dest=/opt/tomcat/"'
                 }
                 timeout(5) {
                     def body = "待发布war包：" + filename + "已经发送到目标机器的/opt/tomcat/目录下，请核对后继续。"
@@ -40,7 +40,7 @@ timestamps {
             }
             stage('停止Tomcat') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/stop_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/stop_tomcat.yml', extras: '--extra-vars "server=' + hosts + '"'
                 }
                 def body = "Tomcat已成功停止，请确认。"
                 notification.dingding(body: body, token: token)
@@ -48,12 +48,12 @@ timestamps {
             }
             stage('部署war') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/deploy_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/deploy_tomcat.yml', extras: '--extra-vars "server=' + hosts + '"'
                 }
             }
             stage('启动Tomcat') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + hosts + '"'
                 }
             }
             stage('部署后Nginx切换') {
