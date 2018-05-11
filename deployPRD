@@ -17,7 +17,7 @@ timestamps {
                 sh "rm -f $workspace/" + artifactId + "*"
             }
             stage('下载发布需要的war包') {
-                withCredentials([usernamePassword(credentialsId: 'SVN', passwordVariable: 'password', usernameVariable: 'user')]) {
+                withCredentials([usernamePassword(credentialsId: 'ldap', passwordVariable: 'password', usernameVariable: 'user')]) {
                     timeout(2) {
                         sh "wget -q https://releases.credit2go.cn/nexus/repository/candidates/" + groupId.replace(".", "/") + "/" + artifactId + "/" + version + "/" + filename + " --user=$user --password=$password"
                     }
