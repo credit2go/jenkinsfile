@@ -1,1 +1,76 @@
-
+#!/usr/bin/env groovy
+timestamps {
+    node('master') {
+        ws('/opt/jenkins/workspace') {
+            def filename = artifactId + "-" + version + "-" + hash + ".war"
+            def host = artifactId + "_" + hosts
+            def token = "a849e5ab2a0258e75c39c8f079f8127017a1754539cc5d51d058f1432fbfcd44"
+            stage('部署前Nginx切换') {
+                timeout(15) {
+                    def body = "请确认Nginx已切换完成，待部署服务器已停止服务"
+                    notification.dingding(body: body, token: token)
+                    input '请确认Nginx已切换完成？'
+                }
+            }
+            stage('清理当前目录下的文件') {
+                echo "待下载文件名为:" + filename
+                sh "rm -f $workspace/" + artifactId + "*"
+            }
+            stage('下载发布需要的war包') {
+                withCredentials([usernamePassword(credentialsId: 'SVN', passwordVariable: 'password', usernameVariable: 'user')]) {
+                    timeout(2) {
+                        sh "wget -q https://releases.credit2go.cn/nexus/repository/candidates/" + groupId.replace(".", "/") + "/" + artifactId + "/" + version + "/" + filename + " --user=$user --password=$password"
+                    }
+                }
+                timeout(5) {
+                    def body = "待发布war包：" + filename + "已经下载到/opt/jenkins/workspace/，请核对后继续。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否下载成功？'
+                }
+            }
+            stage('发送文件到服务器') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_file_to_remote/sent_file_to_remote.yml', extras: '--extra-vars "server=' + host + ' source=$workspace/' + filename + ' dest=/opt/tomcat/"'
+                }
+                timeout(5) {
+                    def body = "待发布war包：" + filename + "已经发送到目标机器的/opt/tomcat/目录下，请核对后继续。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否传送成功？'
+                }
+            }
+            stage('停止Tomcat') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/stop_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                }
+                def body = "Tomcat已成功停止，请确认。"
+                notification.dingding(body: body, token: token)
+                input '请确认是否停止Tomcat成功？'
+            }
+            stage('部署war') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/deploy_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                }
+            }
+            stage('启动Tomcat') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                }
+            }
+            stage('部署后Nginx切换') {
+                timeout(15) {
+                    def body = "Tomcat已完成部署，请完成Nginx切换"
+                    notification.dingding(body: body, token: token)
+                    input '请确认Nginx已切换完成？'
+                }
+            }
+            if (hosts != "groupFirst") {
+                stage('上传发布包') {
+                    util.uploadNexus(groupId: groupId, artifactId: artifactId, version: version, classifier: new Date().format("YYYYMMddHHmmss"), type: 'war', file: filename, svn_revision: svn_version, nexusUrl: 'releases.credit2go.cn/nexus/', repository: 'releases')
+                }
+                stage('结果通知') {
+                    notification(env: 'finance', envType: '生产环境', artifactId: artifactId, version: version, svn_version: svn_version, redmineID: RedmineId, mail: [send: true, mailto: 'delivery@credit2go.cn,support@credit2go.cn', mailcc: 'ops@credit2go.cn,system@credit2go.cn', from: '生产版本发布<notification@credit2go.cn>'], dingding: [send: true, token: token])
+                }
+            }
+        }
+    }
+}
