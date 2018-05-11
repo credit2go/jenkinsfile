@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 timestamps {
-    node(label 'master') {
+    node('master') {
         ws('/opt/jenkins/workspace') {
             def filename = artifactId + "-" + version + "-" + hash + ".war"
             def host = artifactId + "_" + hosts
