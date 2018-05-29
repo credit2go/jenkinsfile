@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 timestamps {
-    node('hangzhou') {
+    node('OpsMayiSH') {
         ws('/opt/jenkins/workspace/devops/mayi/') {
             checkout([$class: 'SubversionSCM', locations: [[credentialsId: 'SVN', depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: 'https://devtest.credit2go.cn:20000/svn/product/branches/devops/mayi/']], workspaceUpdater: [$class: 'UpdateWithCleanUpdater']])
 
