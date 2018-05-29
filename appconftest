@@ -19,7 +19,7 @@ timestamps {
             }
 
                 stage('结果通知') {
-                    notification(env: 'finance', envType: '生产环境', artifactId: artifactId, version: version, svn_version: svn_version, redmineID: RedmineId, mail: [send: true, mailto: 'delivery@credit2go.cn,support.credit2go.cn', mailcc: 'ops@credit2go.cn,system@credit2go.cn', from: '生产版本发布<notification@credit2go.cn>'], dingding: [send: true, token: token])
+                    notification(env: 'finance', envType: '蚂蚁测试环境', artifactId: artifactId, version: version, svn_version: svn_version, redmineID: RedmineId, mail: [send: true, mailto: 'delivery@credit2go.cn,support.credit2go.cn', mailcc: 'ops@credit2go.cn,system@credit2go.cn', from: '生产版本发布<notification@credit2go.cn>'], dingding: [send: true, token: token])
                 }
             }
         }
