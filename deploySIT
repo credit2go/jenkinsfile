@@ -4,14 +4,14 @@ timestamps {
         ws('/opt/jenkins/workspace') {
             //Ansible参数
             def filename = artifactId + "-" + version + "-" + hash + ".war"
-			def hosts = 'sit'
+	    def hosts = 'sit'
             def host = hosts + "_" + artifactId
             def token = "a849e5ab2a0258e75c39c8f079f8127017a1754539cc5d51d058f1432fbfcd44"
             def tomcat = "tomcat-" + artifactId
             //本地参数
             def env
             def envType
-            switch (Hosts) {
+            switch (hosts) {
                 case 'sit':
                     env = 'test'
                     envType = 'SIT测试环境'
