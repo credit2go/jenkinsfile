@@ -5,7 +5,6 @@ timestamps {
             def filename = artifactId + "-" + version + "-" + hash + ".war"
             def host = sit + "_" + artifactId
             def token = "a849e5ab2a0258e75c39c8f079f8127017a1754539cc5d51d058f1432fbfcd44"
-
             stage('清理当前目录下的文件') {
                 echo "待下载文件名为:" + filename
                 sh "rm -f $workspace/" + artifactId + "*"
