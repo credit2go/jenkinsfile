@@ -2,15 +2,31 @@
 timestamps {
     node('OpsMayiSH') {
         ws('/opt/jenkins/workspace') {
+            //Ansible参数
             def filename = artifactId + "-" + version + "-" + hash + ".war"
-            def host = sit + "_" + artifactId
+			def hosts = 'sit'
+            def host = hosts + "_" + artifactId
             def token = "a849e5ab2a0258e75c39c8f079f8127017a1754539cc5d51d058f1432fbfcd44"
+            def tomcat = "tomcat-" + artifactId
+            //本地参数
+            def env
+            def envType
+            switch (Hosts) {
+                case 'sit':
+                    env = 'test'
+                    envType = 'SIT测试环境'
+                    break
+                case 'uat':
+                    env = 'access'
+                    envType = 'UAT测试环境'
+                    break
+            }
             stage('清理当前目录下的文件') {
                 echo "待下载文件名为:" + filename
-                sh "rm -f $workspace/" + artifactId + "*"
+                sh "rm -f $workspace/" + artifactId + "*.war"
             }
             stage('下载发布需要的war包') {
-                withCredentials([usernamePassword(credentialsId: 'ldap', passwordVariable: 'password', usernameVariable: 'user')]) {
+                withCredentials([usernamePassword(credentialsId: 'SVN', passwordVariable: 'password', usernameVariable: 'user')]) {
                     timeout(2) {
                         sh "wget -q https://releases.credit2go.cn/nexus/repository/candidates/" + groupId.replace(".", "/") + "/" + artifactId + "/" + version + "/" + filename + " --user=$user --password=$password"
                     }
@@ -23,38 +39,35 @@ timestamps {
             }
             stage('发送文件到服务器') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_file_to_remote/sent_file_to_remote.yml', extras: '--extra-vars "server=' + host + ' source=$workspace/' + filename + ' dest=/opt/tomcat/"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_file_to_remote/sent_file_to_remote.yml', extras: '--extra-vars "server=' + host + ' source=$workspace/' + filename + " dest=/opt/" + tomcat + '"'
                 }
                 timeout(5) {
-                    def body = "待发布war包：" + filename + "已经发送到目标机器的/opt/tomcat/目录下，请核对后继续。"
+                    def body = "待发布war包：" + filename + "已经发送到目标机器的/opt/" + tomcat + "目录下，请核对后继续。"
                     notification.dingding(body: body, token: token)
                     input '请确认是否传送成功？'
                 }
             }
             stage('停止Tomcat') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/stop_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/stop_tomcat.yml', extras: '--extra-vars "server=' + host + ' service_name=' + tomcat + '"'
                 }
-                def body = "Tomcat已成功停止，请确认。"
-                notification.dingding(body: body, token: token)
-                input '请确认是否停止Tomcat成功？'
+                timeout(5) {
+                    def body = "Tomcat已成功停止，请确认。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否停止Tomcat成功？'
+                }
             }
             stage('部署war') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/deploy_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/deploy_tomcat.yml', extras: '--extra-vars "server=' + host + ' project=' + "${params.artifactId}" + " dest=/opt/" + tomcat + '"'
                 }
             }
             stage('启动Tomcat') {
                 timeout(5) {
-                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + host + '"'
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + host + ' service_name=' + tomcat + ' tomcat_port=' + port + ' project=' + "${params.artifactId}" + '"'
                 }
             }
-			stage('上传发布包') {
-				util.uploadNexus(groupId: groupId, artifactId: artifactId, version: version, classifier: new Date().format("YYYYMMddHHmmss"), type: 'war', file: filename, svn_revision: svn_version, nexusUrl: 'releases.credit2go.cn/nexus/', repository: 'releases')
-			}
-			stage('结果通知') {
-				notification(env: 'finance', envType: 'SIT环境', artifactId: artifactId, version: version, svn_version: svn_version, redmineID: RedmineId, mail: [send: true, mailto: 'delivery@credit2go.cn,support@credit2go.cn', mailcc: 'ops@credit2go.cn,system@credit2go.cn', from: 'SIT版本发布<notification@credit2go.cn>'], dingding: [send: true, token: token])
-			}
+            notification(env: env, envType: envType, artifactId: artifactId, version: version, svn_version: svn_version, redmineID: RedmineId, mail: [send: true, mailto: 'delivery@credit2go.cn', mailcc: 'ops@credit2go.cn,rd@credit2go.cn,yhwang@credit2go.cn'], dingding: [send: true, token: token])
         }
     }
 }
