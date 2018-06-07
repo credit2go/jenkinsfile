@@ -1,1 +1,74 @@
-
+#!/usr/bin/env groovy
+timestamps {
+    node('OpsMayiSH') {
+        ws('/opt/jenkins/workspace') {
+            //Ansible参数
+            def filename = artifactId + "-" + version + "-" + hash + ".war"
+	          def hosts = 'uat'
+            def host = hosts + "_" + artifactId
+            def token = "bdb229a25b630290dd57c70aa9bdb507435b3a0845558017f833304d98994e43"
+            def tomcat = "tomcat"
+	    //def tomcat = "tomcat-" + artifactId
+            //本地参数
+            def env
+            def envType
+            switch (hosts) {
+                case 'sit':
+                    env = 'test'
+                    envType = 'SIT测试环境'
+                    break
+                case 'uat':
+                    env = 'access'
+                    envType = 'UAT测试环境'
+                    break
+            }
+            stage('清理当前目录下的文件') {
+                echo "待下载文件名为:" + filename
+                sh "rm -f $workspace/" + artifactId + "*.war"
+            }
+            stage('下载发布需要的war包') {
+                withCredentials([usernamePassword(credentialsId: 'ldap', passwordVariable: 'password', usernameVariable: 'user')]) {
+                    timeout(2) {
+                        sh "wget -q https://releases.credit2go.cn/nexus/repository/candidates/" + groupId.replace(".", "/") + "/" + artifactId + "/" + version + "/" + filename + " --user=$user --password=$password"
+                    }
+                }
+                timeout(5) {
+                    def body = "待发布war包：" + filename + "已经下载到/opt/jenkins/workspace/，请核对后继续。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否下载成功？'
+                }
+            }
+            stage('发送文件到服务器') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/sent_file_to_remote/sent_file_to_remote.yml', extras: '--extra-vars "server=' + host + ' source=$workspace/' + filename + " dest=/opt/" + tomcat + '"'
+                }
+                timeout(5) {
+                    def body = "待发布war包：" + filename + "已经发送到目标机器的/opt/" + tomcat + "目录下，请核对后继续。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否传送成功？'
+                }
+            }
+            stage('停止Tomcat') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/stop_tomcat.yml', extras: '--extra-vars "server=' + host + ' service_name=' + tomcat + '"'
+                }
+                timeout(5) {
+                    def body = "Tomcat已成功停止，请确认。"
+                    notification.dingding(body: body, token: token)
+                    input '请确认是否停止Tomcat成功？'
+                }
+            }
+            stage('部署war') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/deploy_tomcat.yml', extras: '--extra-vars "server=' + host + ' project=' + "${params.artifactId}" + " dest=/opt/" + tomcat + '"'
+                }
+            }
+            stage('启动Tomcat') {
+                timeout(5) {
+                    ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + host + ' service_name=' + tomcat + ' tomcat_port=' + port + ' project=' + "${params.artifactId}" + '"'
+                }
+            }
+            notification(env: env, envType: envType, artifactId: artifactId, version: version, svn_version: hash, redmineID: redmineID, mail: [send: true, mailto: 'delivery@credit2go.cn', mailcc: 'ops@credit2go.cn,rd@credit2go.cn,yhwang@credit2go.cn'], dingding: [send: true, token: token])
+        }
+    }
+}
