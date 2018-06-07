@@ -4,7 +4,7 @@ timestamps {
         ws('/opt/jenkins/workspace') {
             //Ansible参数
             def filename = artifactId + "-" + version + "-" + hash + ".war"
-	          def hosts = 'uat'
+	    def hosts = 'uat'
             def host = hosts + "_" + artifactId
             def token = "bdb229a25b630290dd57c70aa9bdb507435b3a0845558017f833304d98994e43"
             def tomcat = "tomcat"
