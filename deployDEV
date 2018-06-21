@@ -72,7 +72,7 @@ timestamps {
                     ansiblePlaybook colorized: true, playbook: '/opt/ansible/stop_and_start_tomcat/start_tomcat.yml', extras: '--extra-vars "server=' + host + ' service_name=' + tomcat + ' tomcat_port=' + port + ' project=' + "${params.artifactId}" + '"'
                 }
             }
-            notification(env: env, envType: envType, artifactId: artifactId, version: version, svn_version: hash, redmineID: redmineID, mail: [send: true, mailto: 'delivery@credit2go.cn', mailcc: 'ops@credit2go.cn,rd@credit2go.cn,yhwang@credit2go.cn'], dingding: [send: true, token: token])
+            notification(env: env, envType: envType, artifactId: artifactId, version: version, svn_version: hash, redmineID: redmineID, mail: [send: true, mailto: 'delivery@credit2go.cn', mailcc: 'ops@credit2go.cn,qa@credit2go.cn,chenjing@credit2go.cn'], dingding: [send: true, token: token])
         }
     }
 }
